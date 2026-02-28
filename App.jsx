@@ -1,154 +1,202 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import ReactDOM from "react-dom/client";
 import axios from "axios";
 
-function App() {
-  const [branch, setBranch] = useState("");
-  const [answers, setAnswers] = useState(["", "", "", ""]);
-  const [comment, setComment] = useState("");
-  const [status, setStatus] = useState("");
+const tg = window.Telegram?.WebApp;
 
-  const submitFeedback = async () => {
-    if (!branch) {
-      setStatus("Пожалуйста, выберите пекарню");
+function App() {
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [branch, setBranch] = useState("");
+  const [userName, setUserName] = useState("");
+
+  // Инициализация Telegram
+  useEffect(() => {
+    if (!tg) return;
+
+    tg.ready();
+    tg.expand();
+
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+      setUserName(user.first_name || "");
+    }
+
+    tg.MainButton.setText("Отправить отзыв");
+  }, []);
+
+  // Управление кнопкой и актуальными данными
+  useEffect(() => {
+    if (!tg) return;
+
+    if (rating > 0 && branch) {
+      tg.MainButton.show();
+    } else {
+      tg.MainButton.hide();
+    }
+
+    tg.MainButton.onClick(sendFeedback);
+
+    return () => {
+      tg.MainButton.offClick(sendFeedback);
+    };
+  }, [rating, branch, comment]);
+
+  const sendFeedback = async () => {
+    if (!rating || !branch) {
+      tg.showAlert("Пожалуйста, выберите кофейню и поставьте оценку ⭐");
       return;
     }
-    try {
-      const response = await axios.post("/api/send-feedback", {
-        branch,
-        answers,
-        comment,
-      });
-      console.log("Ответ сервера:", response.data);
-      setStatus("Отзыв отправлен! Спасибо!");
-      setAnswers(["", "", "", ""]);
-      setComment("");
-      setBranch("");
-    } catch (err) {
-      console.error("Ошибка при отправке:", err.response?.data || err.message);
-      setStatus("Ошибка при отправке");
-    }
-  };
 
-  const handleAnswerChange = (index, value) => {
-    const newAnswers = [...answers];
-    newAnswers[index] = value;
-    setAnswers(newAnswers);
+    try {
+      const response = await axios.post(
+        "https://lyubov-bread-miniapp.vercel.app/api/send-feedback",
+        {
+          rating,
+          comment,
+          branch,
+          userName,
+        }
+      );
+
+      if (response.data.success) {
+        tg.showAlert("Спасибо за отзыв ❤️");
+        tg.close();
+      } else {
+        tg.showAlert("Ошибка отправки");
+      }
+    } catch (error) {
+      console.error(error);
+      tg.showAlert("Ошибка соединения");
+    }
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 500,
-        margin: "20px auto",
-        padding: 20,
-        fontFamily: "'Arial', sans-serif",
-        backgroundColor: "#fff8f0",
-        borderRadius: 12,
-        boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-      }}
-    >
-      <h2 style={{ textAlign: "center", color: "#6b4226" }}>
-        Отзыв о пекарне "Любовь и Хлеб"
-      </h2>
+    <div style={container}>
+      <h2 style={title}>🍞 Любовь и Хлеб</h2>
 
-      <div style={{ margin: "15px 0" }}>
-        <label>
-          <strong>Выберите пекарню:</strong>
-          <select
-            value={branch}
-            onChange={(e) => setBranch(e.target.value)}
-            style={{ marginLeft: 10, padding: 5 }}
-          >
-            <option value="">--Выберите--</option>
-            <option value="ул.Советская">ул.Советская</option>
-            <option value="ул.Н.Островского">ул.Н.Островского</option>
-          </select>
-        </label>
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <label>
-          1️⃣ Общее впечатление:
-          <input
-            type="text"
-            placeholder="Например: Вкусно, уютно"
-            value={answers[0]}
-            onChange={(e) => handleAnswerChange(0, e.target.value)}
-            style={{ width: "100%", padding: 6, marginTop: 4 }}
-          />
-        </label>
-
-        <label>
-          2️⃣ Чего не хватает:
-          <input
-            type="text"
-            placeholder="Например: больше кофе, новый десерт"
-            value={answers[1]}
-            onChange={(e) => handleAnswerChange(1, e.target.value)}
-            style={{ width: "100%", padding: 6, marginTop: 4 }}
-          />
-        </label>
-
-        <label>
-          3️⃣ За чем вернетесь:
-          <input
-            type="text"
-            placeholder="Например: за круассанами"
-            value={answers[2]}
-            onChange={(e) => handleAnswerChange(2, e.target.value)}
-            style={{ width: "100%", padding: 6, marginTop: 4 }}
-          />
-        </label>
-
-        <label>
-          4️⃣ Дополнительно (необязательно):
-          <input
-            type="text"
-            placeholder="Например: уютная атмосфера"
-            value={answers[3]}
-            onChange={(e) => handleAnswerChange(3, e.target.value)}
-            style={{ width: "100%", padding: 6, marginTop: 4 }}
-          />
-        </label>
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <label>
-          💬 Комментарий:
-          <textarea
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            rows={4}
-            placeholder="Напишите свой комментарий"
-            style={{ width: "100%", padding: 6, marginTop: 4 }}
-          />
-        </label>
-      </div>
-
-      <button
-        onClick={submitFeedback}
-        style={{
-          marginTop: 15,
-          padding: "10px 20px",
-          backgroundColor: "#c28f5c",
-          border: "none",
-          borderRadius: 6,
-          color: "#fff",
-          fontWeight: "bold",
-          cursor: "pointer",
-          width: "100%",
-        }}
-      >
-        Отправить
-      </button>
-
-      {status && (
-        <div style={{ marginTop: 10, textAlign: "center", color: "#6b4226" }}>
-          {status}
-        </div>
+      {userName && (
+        <p style={hello}>
+          Спасибо, {userName} ❤️
+        </p>
       )}
+
+      {/* Локация */}
+      <div style={section}>
+        <p style={label}>Выберите кофейню:</p>
+
+        <button
+          style={branch === "Советская" ? branchActive : branchButton}
+          onClick={() => setBranch("Советская")}
+        >
+          ул. Советская
+        </button>
+
+        <button
+          style={branch === "Островского" ? branchActive : branchButton}
+          onClick={() => setBranch("Островского")}
+        >
+          ул. Н. Островского
+        </button>
+      </div>
+
+      {/* Звезды */}
+      <div style={section}>
+        <p style={label}>Оцените нас:</p>
+
+        <div style={starsContainer}>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <span
+              key={star}
+              onClick={() => setRating(star)}
+              style={{
+                fontSize: 40,
+                cursor: "pointer",
+                transition: "0.2s",
+                transform: star === rating ? "scale(1.2)" : "scale(1)",
+                color: star <= rating ? "#f5b301" : "#ddd",
+              }}
+            >
+              ★
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Комментарий */}
+      <div style={section}>
+        <textarea
+          placeholder="Что улучшить? Какой продукт добавить?"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          style={textarea}
+        />
+      </div>
     </div>
   );
 }
 
-export default App;
+/* Стили */
+
+const container = {
+  padding: 20,
+  fontFamily: "Arial",
+  minHeight: "100vh",
+  background: "linear-gradient(180deg, #fff8f0 0%, #ffffff 100%)",
+};
+
+const title = {
+  textAlign: "center",
+  marginBottom: 10,
+  color: "#6b4226",
+};
+
+const hello = {
+  textAlign: "center",
+  marginBottom: 20,
+  fontSize: 14,
+};
+
+const section = {
+  marginBottom: 25,
+};
+
+const label = {
+  marginBottom: 10,
+  fontWeight: "bold",
+};
+
+const branchButton = {
+  width: "100%",
+  padding: 12,
+  marginBottom: 10,
+  borderRadius: 12,
+  border: "1px solid #ddd",
+  backgroundColor: "#fff",
+  fontSize: 15,
+};
+
+const branchActive = {
+  ...branchButton,
+  backgroundColor: "#c28f5c",
+  color: "#fff",
+  border: "1px solid #c28f5c",
+};
+
+const starsContainer = {
+  display: "flex",
+  justifyContent: "center",
+  gap: 15,
+};
+
+const textarea = {
+  width: "100%",
+  padding: 14,
+  borderRadius: 12,
+  border: "1px solid #ddd",
+  fontSize: 15,
+  minHeight: 100,
+  resize: "none",
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);

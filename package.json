@@ -1,5 +1,5 @@
 {
-  "name": "client",
+  "name": "lyubov-bread-miniapp",
   "version": "1.0.0",
   "scripts": {
     "dev": "vite",
@@ -7,9 +7,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.13.5",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "axios": "^1.13.5"
   },
   "devDependencies": {
     "vite": "^5.0.0"

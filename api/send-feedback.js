@@ -1,42 +1,51 @@
-import axios from "axios";
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Метод не поддерживается" });
+    return res.status(405).json({ error: "Method not allowed" });
   }
-
-  const { branch, answers, comment } = req.body;
-
-  if (!branch || !answers || answers.length < 3) {
-    return res.status(400).json({ error: "Некорректные данные" });
-  }
-
-  const BOT_TOKEN = process.env.BOT_TOKEN;
-  const TELEGRAM_ID = process.env.TELEGRAM_ID;
-
-  const message = `
-Новый отзыв о пекарне «Любовь и Хлеб» (${branch})
-
-1. Общее впечатление: ${answers[0]}
-2. Чего не хватает: ${answers[1]}
-3. За чем готовы вернуться: ${answers[2]}
-4. Дополнительно: ${answers[3] || "Не указано"}
-
-Комментарий:
-${comment || "Не указан"}
-`;
 
   try {
-    await axios.post(
+    const { branch, rating, improvements, comment } = req.body;
+
+    if (!branch || !rating) {
+      return res.status(400).json({ error: "Missing data" });
+    }
+
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    const TELEGRAM_ID = process.env.TELEGRAM_ID;
+
+    const improvementsText =
+      improvements?.length > 0
+        ? improvements.map(i => `- ${i}`).join("\n")
+        : "Не указано";
+
+    const message = `
+🍞 Любовь и Хлеб
+
+📍 ${branch}
+⭐ ${rating}/5
+
+📉 Зона роста:
+${improvementsText}
+
+💡 Предложение:
+${comment || "Не указано"}
+`;
+
+    await fetch(
       `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
       {
-        chat_id: TELEGRAM_ID,
-        text: message,
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_ID,
+          text: message,
+        }),
       }
     );
 
-    return res.status(200).json({ success: true });
-  } catch (error) {
-    return res.status(500).json({ error: "Ошибка отправки в Telegram" });
+    res.status(200).json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Server error" });
   }
 }
